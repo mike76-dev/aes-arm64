@@ -13,6 +13,7 @@ This implementation uses the NEON SIMD instructions of ARMv8.
 3. aes_bitslice.cpp
 
 This implementation uses the bitslicing algorithm, which allows a parallel processing of 8 encryptions/decryptions.
+Only 128- and 256-bit keys are supported.
 
 ## Benchmarks
 
