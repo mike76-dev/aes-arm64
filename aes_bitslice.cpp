@@ -33,6 +33,11 @@ static const uint8x16_t SR = {
 	0x0a, 0x0b, 0x08, 0x09, 0x0f, 0x0c, 0x0d, 0x0e
 };
 
+static const uint8x16_t ISR = {
+	0x00, 0x01, 0x02, 0x03, 0x07, 0x04, 0x05, 0x06,
+	0x0a, 0x0b, 0x08, 0x09, 0x0d, 0x0e, 0x0f, 0x0c
+};
+
 static const uint8x16_t R32D = {
 	0x07, 0x07, 0x07, 0x07, 0x0b, 0x0b, 0x0b, 0x0b,
 	0x0f, 0x0f, 0x0f, 0x0f, 0x03, 0x03, 0x03, 0x03
@@ -119,6 +124,39 @@ static inline void bitslice(uint8x16_t *x7, uint8x16_t *x6,
 	b7 = veorq_u8(b4, t1); \
 	b7 = veorq_u8(b7, b5); \
 	b5 = t0
+
+#define INV_IN_BS_CH(b0, b1, b2, b3, b4, b5, b6, b7) \
+	b0 = veorq_u8(b0, b1); \
+	b3 = veorq_u8(b3, b0); \
+	b4 = veorq_u8(b4, b3); \
+	b1 = veorq_u8(b1, b4); \
+	b4 = veorq_u8(b4, b7); \
+	b6 = veorq_u8(b6, b3); \
+	b3 = veorq_u8(b3, b4); \
+	b4 = veorq_u8(b4, b6); \
+	b7 = veorq_u8(b7, b4); \
+	b4 = veorq_u8(b4, b2); \
+	b7 = veorq_u8(b7, b5); \
+	b5 = veorq_u8(b5, b7); \
+	b2 = veorq_u8(b2, b4); \
+	b4 = veorq_u8(b4, b7); \
+	b7 = veorq_u8(b7, b0); \
+	b0 = veorq_u8(b0, b5)
+
+#define INV_OUT_BS_CH(b0, b1, b2, b3, b4, b5, b6, b7) \
+	b4 = veorq_u8(b4, b5); \
+	b7 = veorq_u8(b7, b5); \
+	b2 = veorq_u8(b2, b1); \
+	b1 = veorq_u8(b1, b5); \
+	b3 = veorq_u8(b3, b2); \
+	b2 = veorq_u8(b2, b7); \
+	b3 = veorq_u8(b3, b4); \
+	b6 = veorq_u8(b6, b3); \
+	b5 = veorq_u8(b5, b0); \
+	b5 = veorq_u8(b5, b6); \
+	b3 = veorq_u8(b3, b0); \
+	b3 = veorq_u8(b3, b1); \
+	b3 = veorq_u8(b3, b2)
 
 #define MUL_GF4(x0, x1, y0, y1, t0, t1) \
 	t0 = veorq_u8(y0, y1); \
@@ -230,6 +268,17 @@ static inline void bitslice(uint8x16_t *x7, uint8x16_t *x6,
 	b5 = vmvnq_u8(b5); \
 	b6 = vmvnq_u8(b6)
 
+#define INV_SBOX(b0, b1, b2, b3, b4, b5, b6, b7, \
+	t0, t1, t2, t3, s0, s1, s2, s3) \
+	b0 = vmvnq_u8(b0); \
+	b1 = vmvnq_u8(b1); \
+	b5 = vmvnq_u8(b5); \
+	b6 = vmvnq_u8(b6); \
+	INV_IN_BS_CH(b0, b1, b2, b3, b4, b5, b6, b7); \
+	INV_GF256(b6, b5, b0, b3, b7, b1, b4, b2, \
+		t0, t1, t2, t3, s0, s1, s2, s3); \
+	INV_OUT_BS_CH(b0, b1, b2, b3, b4, b5, b6, b7)
+
 #define MIX_COLS(x0, x1, x2, x3, x4, x5, x6, x7, \
 	t0, t1, t2, t3, t4, t5, t6, t7) \
 	t0 = vextq_u8(x0, x0, 4); \
@@ -275,6 +324,41 @@ static inline void bitslice(uint8x16_t *x7, uint8x16_t *x6,
 	x5 = veorq_u8(x5, t5); \
 	x6 = veorq_u8(x6, t6); \
 	x7 = veorq_u8(x7, t7)
+
+#define INV_MIX_COLS(x0, x1, x2, x3, x4, x5, x6, x7, \
+	t0, t1, t2, t3, t4, t5, t6, t7) \
+	t0 = vextq_u8(x0, x0, 8); \
+	t1 = vextq_u8(x1, x1, 8); \
+	t2 = vextq_u8(x2, x2, 8); \
+	t3 = vextq_u8(x3, x3, 8); \
+	t4 = vextq_u8(x4, x4, 8); \
+	t5 = vextq_u8(x5, x5, 8); \
+	t6 = vextq_u8(x6, x6, 8); \
+	t7 = vextq_u8(x7, x7, 8); \
+	t0 = veorq_u8(t0, x0); \
+	t1 = veorq_u8(t1, x1); \
+	t2 = veorq_u8(t2, x2); \
+	t3 = veorq_u8(t3, x3); \
+	t4 = veorq_u8(t4, x4); \
+	t5 = veorq_u8(t5, x5); \
+	t6 = veorq_u8(t6, x6); \
+	t7 = veorq_u8(t7, x7); \
+	x0 = veorq_u8(x0, t6); \
+	x1 = veorq_u8(x1, t6); \
+	x1 = veorq_u8(x1, t7); \
+	x2 = veorq_u8(x2, t0); \
+	x2 = veorq_u8(x2, t7); \
+	x3 = veorq_u8(x3, t1); \
+	x3 = veorq_u8(x3, t6); \
+	x4 = veorq_u8(x4, t2); \
+	x4 = veorq_u8(x4, t6); \
+	x4 = veorq_u8(x4, t7); \
+	x5 = veorq_u8(x5, t3); \
+	x5 = veorq_u8(x5, t7); \
+	x6 = veorq_u8(x6, t4); \
+	x7 = veorq_u8(x7, t5); \
+	MIX_COLS(x0, x1, x2, x3, x4, x5, x6, x7, \
+		t0, t1, t2, t3, t4, t5, t6, t7)
 
 #define SHIFT_ROWS(x0, x1, x2, x3, x4, x5, x6, x7, mask) \
 	x0 = vqtbl1q_u8(x0, mask); \
@@ -573,6 +657,95 @@ inline void aesbs_encryption_round(uint8x16_t *x0, uint8x16_t *x1, uint8x16_t *x
 	*x5 = veorq_u8(*x5, *(bskey + 5));
 	*x6 = veorq_u8(*x6, *(bskey + 6));
 	*x7 = veorq_u8(*x7, *(bskey + 7));
+}
+
+inline void aesbs_decryption_round(uint8x16_t *x0, uint8x16_t *x1, uint8x16_t *x2,
+	uint8x16_t *x3, uint8x16_t *x4, uint8x16_t *x5, uint8x16_t *x6,
+	uint8x16_t *x7, uint8x16_t *bskey)
+{
+	uint8x16_t t0, t1, t2, t3, t4, t5, t6, t7;
+	SHIFT_ROWS(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7, ISR);
+	INV_SBOX(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7,
+		t0, t1, t2, t3, t4, t5, t6, t7);
+	*x0 = veorq_u8(*x0, *bskey);
+	*x1 = veorq_u8(*x1, *(bskey + 1));
+	*x2 = veorq_u8(*x2, *(bskey + 2));
+	*x3 = veorq_u8(*x3, *(bskey + 3));
+	*x4 = veorq_u8(*x4, *(bskey + 4));
+	*x5 = veorq_u8(*x5, *(bskey + 5));
+	*x6 = veorq_u8(*x6, *(bskey + 6));
+	*x7 = veorq_u8(*x7, *(bskey + 7));
+	INV_MIX_COLS(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7,
+		t0, t1, t2, t3, t4, t5, t6, t7);
+}
+
+void aesbs_encrypt(uint8x16_t *x0, uint8x16_t *x1, uint8x16_t *x2,
+	uint8x16_t *x3, uint8x16_t *x4, uint8x16_t *x5, uint8x16_t *x6,
+	uint8x16_t *x7, uint8x16_t *bskey, uint8_t numkeys)
+{
+	uint8_t i;
+	uint8x16_t t0, t1, t2, t3, t4, t5, t6, t7;
+
+	bitslice(x0, x1, x2, x3, x4, x5, x6, x7);
+	*x0 = veorq_u8(*x0, *bskey);
+	*x1 = veorq_u8(*x1, *(bskey + 1));
+	*x2 = veorq_u8(*x2, *(bskey + 2));
+	*x3 = veorq_u8(*x3, *(bskey + 3));
+	*x4 = veorq_u8(*x4, *(bskey + 4));
+	*x5 = veorq_u8(*x5, *(bskey + 5));
+	*x6 = veorq_u8(*x6, *(bskey + 6));
+	*x7 = veorq_u8(*x7, *(bskey + 7));
+	bskey += 8;
+	for (i = 8; i < numkeys - 8; i += 8, bskey += 8) {
+		aesbs_encryption_round(x0, x1, x2, x3, x4, x5, x6, x7, bskey);
+	}
+	SBOX(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7,
+		t0, t1, t2, t3, t4, t5, t6, t7);
+	SHIFT_ROWS(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7, SR);
+	*x0 = veorq_u8(*x0, *bskey);
+	*x1 = veorq_u8(*x1, *(bskey + 1));
+	*x2 = veorq_u8(*x2, *(bskey + 2));
+	*x3 = veorq_u8(*x3, *(bskey + 3));
+	*x4 = veorq_u8(*x4, *(bskey + 4));
+	*x5 = veorq_u8(*x5, *(bskey + 5));
+	*x6 = veorq_u8(*x6, *(bskey + 6));
+	*x7 = veorq_u8(*x7, *(bskey + 7));
+	bitslice(x0, x1, x2, x3, x4, x5, x6, x7);
+}
+
+void aesbs_decrypt(uint8x16_t *x0, uint8x16_t *x1, uint8x16_t *x2,
+	uint8x16_t *x3, uint8x16_t *x4, uint8x16_t *x5, uint8x16_t *x6,
+	uint8x16_t *x7, uint8x16_t *bskey, uint8_t numkeys)
+{
+	uint8_t i;
+	uint8x16_t t0, t1, t2, t3, t4, t5, t6, t7;
+
+	bitslice(x0, x1, x2, x3, x4, x5, x6, x7);
+	bskey += numkeys - 8;
+	*x0 = veorq_u8(*x0, *bskey);
+	*x1 = veorq_u8(*x1, *(bskey + 1));
+	*x2 = veorq_u8(*x2, *(bskey + 2));
+	*x3 = veorq_u8(*x3, *(bskey + 3));
+	*x4 = veorq_u8(*x4, *(bskey + 4));
+	*x5 = veorq_u8(*x5, *(bskey + 5));
+	*x6 = veorq_u8(*x6, *(bskey + 6));
+	*x7 = veorq_u8(*x7, *(bskey + 7));
+	bskey -= 8;
+	for (i = 8; i < numkeys - 8; i += 8, bskey -= 8) {
+		aesbs_decryption_round(x0, x1, x2, x3, x4, x5, x6, x7, bskey);
+	}
+	SHIFT_ROWS(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7, ISR);
+	INV_SBOX(*x0, *x1, *x2, *x3, *x4, *x5, *x6, *x7,
+		t0, t1, t2, t3, t4, t5, t6, t7);
+	*x0 = veorq_u8(*x0, *bskey);
+	*x1 = veorq_u8(*x1, *(bskey + 1));
+	*x2 = veorq_u8(*x2, *(bskey + 2));
+	*x3 = veorq_u8(*x3, *(bskey + 3));
+	*x4 = veorq_u8(*x4, *(bskey + 4));
+	*x5 = veorq_u8(*x5, *(bskey + 5));
+	*x6 = veorq_u8(*x6, *(bskey + 6));
+	*x7 = veorq_u8(*x7, *(bskey + 7));
+	bitslice(x0, x1, x2, x3, x4, x5, x6, x7);
 }
 
 #define REPEATS 100000000
