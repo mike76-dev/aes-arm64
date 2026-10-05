@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2023 Michael Bulanov
+ *
+ * This file is part of aes-arm64 and is licensed under the MIT License.
+ * See the LICENSE file in the project root for the full license text.
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
